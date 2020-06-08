@@ -1,4 +1,11 @@
-# V4.0 pingTester REBORN
+# PepeLeave
+
+"""
+V3: Added date support and sound on error. Added default gateway finder instead of typing it in. ---OUTDATED---
+V3.1: Added a last disconnect. 
+v3.2: Added a one time line that shows the date. Optimized code. Fixed bugs. Added a small debug screen.
+v4.0 i feel like i'm dumpster diving...
+"""
 
 import routerPinger, subprocess, re, os
 import datetime, time
@@ -9,7 +16,6 @@ class interface:
     def __init__(self):
         print("Initializing...")
         self.routerAddress = routerPinger.routerTester().localIP
-        self.googleAddress = '8.8.8.8'
         self.prevNums = []
         self.lastDisconnect = ":)\n"
         if not os.path.isdir("Logs"):
@@ -50,7 +56,7 @@ class interface:
                         self.pinger(self.routerAddress)
                         break
                     except subprocess.CalledProcessError:
-                        self.createLogFile(self.routerAddress) # router connection failed, will repeat with google, i guess
+                        self.createLogFile(self.routerAddress) # router connection failed
                         time.sleep(1)
             time.sleep(1)
 
