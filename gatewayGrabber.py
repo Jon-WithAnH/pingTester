@@ -1,5 +1,4 @@
-import subprocess, os, signal
-import re
+import subprocess, re
 
 class routerTester:
     # REQS
@@ -23,11 +22,10 @@ class routerTester:
         if len(commandOutput) < 60:
             print("ERROR 339: Initial connection to router failed. Please contact Dev. Killing process...")
             input("Enter to continue")
-        localIP = (re.search('Default Gateway(\D+)(\S+)', commandOutput)).group(2)
-        localIP = localIP[0:-5] # removes \r\n at end of line. eg 192.168.0.1\r\n
+        # WARNING: only works if ip has 3 dots eg 192.14.1 would not work. 192.168.11.22.3 would not work
+        localIP = (re.search('Default Gateway(\D+)(\d+.\d+.\d+.\d+)', commandOutput)).group(2)
         if len(localIP) > 11:
             print("WARNING: Suspicious IP: [%s]" % localIP)
-        else:
-            print('IP grabbed: [%s] ' % localIP)
+            input("Please confirm IP and press enter to continue...")
         self.localIP = localIP
         return self.localIP
