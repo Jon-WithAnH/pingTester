@@ -1,117 +1,63 @@
-# PepeLeave
+import pingTester, gatewayGrabber
+import re, os
+import time
 
-"""
-V3: Added date support and sound on error. Added default gateway finder instead of typing it in.
-V3.1: Added a last disconnect.
-v3.2: Added a one time line that shows the date. Optimized code. Fixed bugs. Added a small debug screen.
-v4.0 i feel like i'm dumpster diving...
-"""
-
-import gatewayGrabber, subprocess, re, os
-import datetime, time
-import winsound
-
-class interface:
-    routerAddress = ""
-
-    def __init__(self, outboundIP, pingsToDisplay, highPingThreshold):
-        if not os.path.isdir("Logs"):
-            print("First time setup")
-            os.mkdir('Logs')
-        self.ip=outboundIP
-        self.pingsToDisplay = pingsToDisplay
-        self.highPingThreshold = highPingThreshold
-        self.routerAddress = gatewayGrabber.routerTester().localIP
-        self.prevNums = []
-        self.avgNum = 0
-        self.highestPing = 0
-        self.lastDisconnect = "none\n"
-        os.chdir('Logs')  # For logging into the Logs subfolder
-        self.looper()
-
-    # Handles direct pinging, passes results and ip to display and list manager
-    def pinger(self, ip):
-        commandOutput = str(subprocess.check_output('ping -n 1 ' + ip))
-        ping = int((re.search('time(\D)(\d+)', commandOutput)).group(2))  # 0 = time, 1 = <|=, 2 = digits
-        if ip == self.routerAddress:
-            self.display(ping, ip)
-            # doesn't display or record pings to router. if ping is successful, it will be super low
-            # failures still get logged
-        else:
-            self.prevPingManager(ping), self.display(ping, ip)
-        if ping >= self.highPingThreshold: # threshold passed. needs to be logged
-            self.logHighPing(ping, ip)
-        return ping, ip
-
-    # keeps track of previous ping stuff
-    def prevPingManager(self, ping):
-        if ping > self.highestPing:
-            self.highestPing = ping
-        # --- List management ---
-        prevNums = self.prevNums
-        if len(prevNums) <= self.pingsToDisplay:  # Adds the pings to the list for averaging and printing
-            prevNums.append(ping)
-        elif len(prevNums) > self.pingsToDisplay:  # Removes first entry and replaces it with the new one
-            del prevNums[0]
-            prevNums.append(ping)
-        self.avgNum = int(sum(prevNums) / len(prevNums))
-
-
-    def display(self, ping, ip):
-        os.system('cls')
-        print('PingTester to ' + ip)
-        print('Highest ping: %sms' % self.highestPing)
-        print('Avg ping: %sms' % self.avgNum)
-        for pings in self.prevNums:  # Prints previous pings stored in prevNums
-            print(pings, 'ms', sep='')
-        print('\n\n\nLast disconnect: %s' % self.lastDisconnect, end='')
-
-    def looper(self):
-        ip=self.ip
-        while True:
-            try:
-                self.pinger(ip)
-            except subprocess.CalledProcessError: # Log and check router connection
-                winsound.PlaySound("!", winsound.SND_ASYNC) # Audio notifier
-                self.createLogFile(ip)
-                while True: #pointless to reping google when router is down. keeps checking until router is up
-                    try:
-                        self.pinger(self.routerAddress)
-                        break
-                    except subprocess.CalledProcessError:
-                        self.createLogFile(self.routerAddress)
-                        time.sleep(1)
-            time.sleep(1)
-
-
-    def getTime(self):
-        # 24 hr time
-        return datetime.datetime.now()
-
-    # Called by pinger should ping ever be higher than value of highPingThreshold in config
-    def logHighPing(self, ping, ip):
-        print("High ping logged")
-        dayAndTime = self.getTime()
-        fd = open(dayAndTime.date().__str__() +'.txt', mode='a')
-        fd.write('WARNING: high ping of [%s] occurred @ %s:%s:%s to address %s\n' %
-                 (ping, dayAndTime.hour, dayAndTime.minute, dayAndTime.second, ip))
-        fd.close()
-
-    # Actually just logs, idk why it's called "create"
-    def createLogFile(self, ip):
-        print("Connection Error occurred and logged %s" % ip)
-        dayAndTime = self.getTime()
-        fd = open(dayAndTime.date().__str__() +'.txt', mode='a')
-        fd.write('Error occured @ %s:%s:%s to address %s\n' % (dayAndTime.hour, dayAndTime.minute, dayAndTime.second, ip))
-        fd.close()
-        self.lastDisconnect = str(dayAndTime.time().hour) + ":" + str(dayAndTime.time().minute) + ":" + str(dayAndTime.time().second)
-
-
+# Creates config file is it doesn't exist
 if not os.path.exists('config.txt'):
-    input("Fucking idiot, config not found. program will close")
+    with open('config.txt', mode='w') as config:
+        config.write('''defaultIP=8.8.8.8\npingsToDisplay=10\nhighPingThreshold=100''')
 
+if not os.path.isdir("Logs"):
+    os.mkdir('Logs')
+
+# pulls user variables from config
 with open('config.txt', mode='r') as config:
-    defaultIP = (re.search("defaultIP=(.+)", config.readline())).group(1)
-    pingsToDisplay = (re.search("pingsToDisplay=(.+)", config.readline())).group(1)
-    highPingThreshold = (re.search("highPingThreshold=(.+)", config.readline())).group(1)
-obj = interface(defaultIP, int(pingsToDisplay), int(highPingThreshold))
+    defaultIP = (re.search("\d.+", config.readline())).group(0)
+    pingsToDisplay = int((re.search("\d+", config.readline())).group(0))
+    highPingThreshold = int((re.search("\d+", config.readline())).group(0))
+
+
+class combine():
+    def __init__(self, outbound, router):
+        self.outbound = outbound
+        self.router = router
+
+    def start(self):
+        while len(self.outbound.prevNums) < self.outbound.pingsToDisplay+1:
+            # i have no clue what will happen if outbound is successful but router fails.
+            # i think the check in the display loop with catch it. not sure tho. dunno how to create that problem easily
+            # anyways, start operations. generating data
+            self.outbound.pinger()
+            self.router.pinger()
+            self.display()
+            time.sleep(.5)
+        while True:
+            time.sleep(1)
+            if not self.outbound.pinger():
+                # outbound ping failed
+                while not self.router.pinger():
+                    # router is down
+                    print("Connection to router failed. Time between router pings is 4 seconds. Please check connection")
+                    time.sleep(4)
+            self.display()
+
+    # could ping one and then ping the other during first 10 tests. after that only ping outbound
+    # reduce sleep to .5 to make up for that
+    def display(self):
+        x=80
+        os.system('cls')
+        print(('PingTester to ' + self.outbound.ip).ljust(x) + "PingTester to " + self.router.ip)
+        print(('Highest ping: %sms' % self.outbound.highestPing).ljust(x) + "Highest ping: %sms" % self.router.highestPing)
+        print(('Avg ping: %sms' % self.outbound.avgNum).ljust(x) + "Avg ping: %sms" % self.router.avgNum)
+        # if outbound succeeds but router fails, there will be an IndexOutOfBound
+        if len(self.outbound.prevNums) <= len(self.router.prevNums):
+            for pings in range(len(self.outbound.prevNums)):
+                print(("%sms" % self.outbound.prevNums[pings]).ljust(x) + "%sms" % self.router.prevNums[pings])
+        print('\n\n\nLast disconnect: %s' % self.outbound.lastDisconnect, end='')
+
+
+os.chdir('Logs')  # For logging into the Logs subfolder
+outboundObj = pingTester.interface(defaultIP, int(pingsToDisplay), int(highPingThreshold))
+routerObj = pingTester.interface(gatewayGrabber.routerTester().localIP, pingsToDisplay, 20)
+
+combine(outboundObj, routerObj).start()
