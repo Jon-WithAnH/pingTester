@@ -1,18 +1,11 @@
-# PepeLeave
+## Handle the actual pinging to the IP's and logging ##
 
-"""
-V3: Added date support and sound on error. Added default gateway finder instead of typing it in.
-V3.1: Added a last disconnect.
-v3.2: Added a one time line that shows the date. Optimized code. Fixed bugs. Added a small debug screen.
-v4.0 i feel like i'm dumpster diving...
-"""
-
-import gatewayGrabber, subprocess, re, os
-import datetime, time
+import subprocess, re, os
+import datetime
 import winsound
 
+
 class interface:
-    # routerAddress = ""
 
     def __init__(self, outboundIP, pingsToDisplay, highPingThreshold):
         self.ip = outboundIP
@@ -26,23 +19,38 @@ class interface:
     # Handles direct pinging, passes results and ip to display and list manager
     def pinger(self):
         ip = self.ip
-        try:
-            commandOutput = str(subprocess.check_output('ping -n 1 ' + ip))
-        except subprocess.CalledProcessError:  # Log and check router connection
-            winsound.PlaySound("!", winsound.SND_ASYNC)  # Audio notifier - no delay
-            self.createLogFile(ip)
+        commandOutput = self.sendPingCommendToCMD(ip)
+        if not commandOutput:
             return False
-        ping = int((re.search('time(\D)(\d+)', commandOutput)).group(2))  # 0 = time, 1 = <|=, 2 = digits
+        ping = self.ping(ip, commandOutput)
         self.prevPingManager(ping)
         if ping >= self.highPingThreshold: # threshold passed. needs to be logged
             self.logHighPing(ping, ip)
         return ping, ip
 
+    def ping(self, ip, commandOutput):
+        try:
+            ping = int((re.search('time(\D)(\d+)', commandOutput)).group(2))  # 0 = time, 1 = <|=, 2 = digits
+            return ping
+        except AttributeError as err:
+            # FIXME: some grouping error when valid local connection but failed ping, not sure why, but error's here. unable to replicate
+            self.crashLog(ip, commandOutput, err)
+            input("ERROR: Possible invalid command response. Check log for details. Enter to continue.")
+            raise AttributeError
+
+    def sendPingCommendToCMD(self, ip):
+        try:
+            commandOutput = str(subprocess.check_output('ping -n 1 ' + ip))
+            return commandOutput
+        except subprocess.CalledProcessError:  # Log and check router connection
+            winsound.PlaySound("!", winsound.SND_ASYNC)  # Audio notifier - no delay
+            self.logErrorInfo(ip)
+            return False
+
     # keeps track of previous ping stuff
     def prevPingManager(self, ping):
-        if ping > self.highestPing:
-            self.highestPing = ping
-        # --- List management ---
+        self.checkAndMaybeChangeHighestPing(ping)
+        # --- List management --- #
         prevNums = self.prevNums
         if len(prevNums) <= self.pingsToDisplay:  # Adds the pings to the list for averaging and printing
             prevNums.append(ping)
@@ -51,7 +59,11 @@ class interface:
             prevNums.append(ping)
         self.avgNum = int(sum(prevNums) / len(prevNums))
 
-    # doesn't get used by the "parent" (not actually a parent) but eh, might be useful one day
+    def checkAndMaybeChangeHighestPing(self, ping):
+        if ping > self.highestPing:
+            self.highestPing = ping
+
+    # depreciated. kept for future records
     def display(self, ip):
         os.system('cls')
         print('PingTester to ' + ip)
@@ -65,21 +77,28 @@ class interface:
         # 24 hr time
         return datetime.datetime.now()
 
-    # Called by pinger should ping ever be higher than value of highPingThreshold in config
     def logHighPing(self, ping, ip):
-        print("High ping logged")
         dayAndTime = self.getTime()
         fd = open(dayAndTime.date().__str__() +'.txt', mode='a')
         fd.write('WARNING: high ping of [%s] occurred @ %s:%s:%s to address %s\n' %
                  (ping, dayAndTime.hour, dayAndTime.minute, dayAndTime.second, ip))
         fd.close()
 
-    # Actually just logs, idk why it's called "create"
-    def createLogFile(self, ip):
+    def logErrorInfo(self, ip):
         print("Disconnection: [%s]" % ip)
         dayAndTime = self.getTime()
         fd = open(dayAndTime.date().__str__() +'.txt', mode='a')
         fd.write('Disconnection occurred @ %s:%s:%s to address %s\n' % (dayAndTime.hour, dayAndTime.minute, dayAndTime.second, ip))
         fd.close()
         self.lastDisconnect = str(dayAndTime.time().hour) + ":" + str(dayAndTime.time().minute) + ":" + str(dayAndTime.time().second)
+
+    def crashLog(self, ip, commandStr, err):
+        print("Disconnection: [%s]" % ip)
+        dayAndTime = self.getTime()
+        fd = open('Crash.txt', mode='a')
+        fd.write('PingTester.py crash @ %s:%s:%s to address %s\n' % (dayAndTime.hour, dayAndTime.minute, dayAndTime.second, ip))
+        fd.write('commandOutput [%s]\n' % commandStr)
+        fd.write('msg: [%s]\n' % err)
+        fd.close()
+
 

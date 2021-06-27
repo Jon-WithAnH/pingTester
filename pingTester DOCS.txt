@@ -1,0 +1,10 @@
+INSTRUCTIONS
+-- Config is auto created if it doesn't already exist --
+use the config to adjust outbound IP. 8.8.8.8 is default and is google. 
+pingsToDisplay will change the number of pings the program displays in the prompt. this number also factors into the avgerage
+highPingThreshold, should it survive, will log any pings over that amount into a subfolder called "Logs"
+run the program and it'll start
+
+DETAILS:
+router highPingThreshold is hard set by routerObj = pingTester.interface(gatewayGrabber.routerTester().localIP, pingsToDisplay, 20)
+the 20 at the end means anything higher than 20 ping is logged.
