@@ -26,14 +26,14 @@ class interface:
         self.prevPingManager(ping)
         if ping >= self.highPingThreshold: # threshold passed. needs to be logged
             self.logHighPing(ping, ip)
-        return ping, ip
+        return ping
 
     def ping(self, ip, commandOutput):
         try:
             ping = int((re.search('time(\D)(\d+)', commandOutput)).group(2))  # 0 = time, 1 = <|=, 2 = digits
             return ping
         except AttributeError as err:
-            # FIXME: some grouping error when valid local connection but failed ping, not sure why, but error's here. unable to replicate
+            # FIXME: some grouping error happened here once, not sure why. unable to replicate
             self.crashLog(ip, commandOutput, err)
             input("ERROR: Possible invalid command response. Check log for details. Enter to continue.")
             raise AttributeError

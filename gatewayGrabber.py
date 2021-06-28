@@ -41,13 +41,13 @@ class routerTester:
         exit(1)
 
     def IPVerification(self, ip):
-        if input("Old Gateway [%s]\nPlease confirm IP. Do you want to change default gateway? (y/n) " % ip).lower() == "y":
+        if input("Old Gateway [%s]\nPlease confirm IP. Is this the IP you want to use? (y/n) " % ip).lower() == "n":
             cont = 'n'
             localIP = ip
             while cont == 'n':
                 localIP = input("Please enter default gateway: ")
                 print("Old Gateway [%s]" % ip)
                 print("You entered [%s]" % localIP)
-                cont = input("Is this correct? (y/n)").lower()
+                cont = input("Is this correct? (y/n) ").lower()
             return localIP
         return ip
