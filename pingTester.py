@@ -79,7 +79,7 @@ class interface:
 
     def logHighPing(self, ping, ip):
         dayAndTime = self.getTime()
-        fd = open(dayAndTime.date().__str__() +'.txt', mode='a')
+        fd = open('Logs\\' + dayAndTime.date().__str__() +'.txt', mode='a')
         fd.write('WARNING: high ping of [%s] occurred @ %s:%s:%s to address %s\n' %
                  (ping, dayAndTime.hour, dayAndTime.minute, dayAndTime.second, ip))
         fd.close()
@@ -87,7 +87,7 @@ class interface:
     def logErrorInfo(self, ip):
         print("Disconnection: [%s]" % ip)
         dayAndTime = self.getTime()
-        fd = open(dayAndTime.date().__str__() +'.txt', mode='a')
+        fd = open('Logs\\' + dayAndTime.date().__str__() + '.txt', mode='a')
         fd.write('Disconnection occurred @ %s:%s:%s to address %s\n' % (dayAndTime.hour, dayAndTime.minute, dayAndTime.second, ip))
         fd.close()
         self.lastDisconnect = str(dayAndTime.time().hour) + ":" + str(dayAndTime.time().minute) + ":" + str(dayAndTime.time().second)
